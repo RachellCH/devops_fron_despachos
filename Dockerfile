@@ -1,18 +1,32 @@
-#Usa una imagen de node como base
-FROM node:20-alpine AS build
-#Establece el directorio de trabajo dentro del contenedor
+# ==========================================
+# Etapa 1: Construcción (Build Stage) con Node
+# ==========================================
+FROM node:18-alpine AS builder
 WORKDIR /app
-#Copiar el archivo package.json package-lock.json
-COPY package.json package-lock.json ./
-#Instala las dependencias del proyecto
+
+# Copiamos package.json y package-lock.json
+COPY package*.json ./
+
+# Instalamos dependencias
 RUN npm install
-#Copiar el resto del codigo del proyecto
+
+# Copiamos el resto del código y construimos para producción
 COPY . .
-#Compilar el proyecto
 RUN npm run build
-#Usar una imagen de nginx para servir el contenido estatico
-FROM nginx:1.19.0-alpine
-#Copiar los archivos de construccion desde la etapa anterior
-COPY --from=build /app/dist/ /usr/share/nginx/html
-#Exponer el puerto que se usará para acceder a la aplicacion
+
+# ==========================================
+# Etapa 2: Servidor Web (Run Stage) con Nginx
+# ==========================================
+FROM nginx:alpine
+
+# Copiamos nuestra configuración personalizada de Nginx
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+
+# Copiamos la carpeta 'dist' generada por Vite hacia Nginx
+COPY --from=builder /app/dist /usr/share/nginx/html
+
+# Exponemos el puerto 80 (el estándar web)
 EXPOSE 80
+
+# Comando para arrancar Nginx
+CMD ["nginx", "-g", "daemon off;"]
